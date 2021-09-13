@@ -53,9 +53,6 @@
 // @noframes
 // ==/UserScript==
 
-// just let type script work.
-(function() { function require(){}; require("greasemonkey"); })();
-
 (function() {
     'use strict';
 
