@@ -5,7 +5,7 @@ const del = require('del');
 function build() {
     del.sync(['dist/**/*']);
 
-    return gulp.src('src/lib/**/*.js')
+    return gulp.src('src/**/*.js')
         .pipe(gulp.dest('dist'));
 }
 
