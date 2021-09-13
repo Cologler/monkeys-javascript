@@ -62,27 +62,11 @@
     const GMAPI = {};
 
     // sync api
-    GMAPI.GM_addStyle = GM_addStyle;
-    GMAPI.GM_deleteValue = GM_deleteValue;
-    GMAPI.GM_listValues = GM_listValues;
-    GMAPI.GM_addValueChangeListener = GM_addValueChangeListener;
-    GMAPI.GM_removeValueChangeListener = GM_removeValueChangeListener;
-    GMAPI.GM_setValue = GM_setValue;
-    GMAPI.GM_getValue = GM_getValue;
-    GMAPI.GM_log = GM_log;
-    GMAPI.GM_getResourceText = GM_getResourceText;
-    GMAPI.GM_getResourceURL = GM_getResourceURL;
-    GMAPI.GM_registerMenuCommand = GM_registerMenuCommand;
-    GMAPI.GM_unregisterMenuCommand = GM_unregisterMenuCommand;
-    GMAPI.GM_openInTab = GM_openInTab;
-    GMAPI.GM_xmlhttpRequest = GM_xmlhttpRequest;
-    GMAPI.GM_download = GM_download;
-    GMAPI.GM_getTab = GM_getTab;
-    GMAPI.GM_saveTab = GM_saveTab;
-    GMAPI.GM_getTabs = GM_getTabs;
-    GMAPI.GM_notification = GM_notification;
-    GMAPI.GM_setClipboard = GM_setClipboard;
-    GMAPI.GM_info = GM_info;
+    for (const propertyName of Object.getOwnPropertyNames(window)) {
+        if (propertyName.startsWith('GM_')) {
+            GMAPI[propertyName] = window[propertyName];
+        }
+    }
 
     // async api
     GMAPI.GM = GM;
@@ -93,9 +77,9 @@
     // export
     const global = unsafeWindow;
     for (const exportName of ['GMAPI', 'GM_API', 'GM_API_' + crypto.getRandomValues(new Uint32Array(1))[0].toString()]) {
-        if (unsafeWindow[exportName] === undefined) {
-            unsafeWindow[exportName] = GMAPI;
-            console.info(`exported GM Api (${exportName}) to global`);
+        if (global[exportName] === undefined) {
+            global[exportName] = GMAPI;
+            console.info(`exported GM Api (with name: '${exportName}') to global.`);
             return;
         }
     }
