@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name                Better Quality Image
-// @namespace           https://github.com/Cologler/
+// @namespace           https://github.com/Cologler/monkeys-javascript
 // @version             0.1
 // @description         switch image src to high quality version.
 // @author              Cologler (skyoflw@gmail.com)
