@@ -119,14 +119,32 @@
 
     XMLHttpRequest.prototype.getAllResponseHeaders = function() {
         if (!this[sGmXhr]) {
-            return origin.getAllResponseHeaders.call(this);
+            return origin.getAllResponseHeaders.apply(this, arguments);
         }
         return this[sResponse]?.responseHeaders;
     }
 
     XMLHttpRequest.prototype.getResponseHeader = function(header) {
-        console.debug('Calling not implemented getResponseHeader().')
-        return origin.getResponseHeader.call(this, arguments);
+        if (!this[sGmXhr]) {
+            return origin.getResponseHeader.apply(this, arguments);
+        }
+
+        if (typeof header !== 'string') {
+            return null;
+        }
+
+        const headerKey = header.toLowerCase() + ':';
+        /** @type string */
+        const headers = this[sResponse]?.responseHeaders;
+        if (headers) {
+            const headersArray = headers.trim().split(/[\r\n]+/);
+            for (const headerStr of headersArray) {
+                if (headerStr.toLowerCase().startsWith(headerKey)) {
+                    return headerStr.substr(headerKey.length).trim();
+                }
+            }
+        }
+        return null;
     }
 
     function overwriteProperites(xhr, resp) {
