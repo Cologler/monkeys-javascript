@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name                CORS Proxy
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1
+// @version             0.1.0
 // @description         proxy xhr to GM_xmlhttpRequest to prevent CORS issues.
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/Cologler/monkeys-javascript
 // @grant               GM_xmlhttpRequest
 // @grant               GM_getValue
+// @grant               GM_setValue
 // @noframes
 // @license             MIT
 // ==/UserScript==
@@ -28,13 +29,25 @@
     const sResponse = Symbol('response');
     const sGmXhr = Symbol('gm-xhr');
 
-    const regexs = GM_getValue('urls', []).map(x => RegExp(x));
+    const rules = [];
+
     function filterRequest(xhr) {
-        const url = xhr[sOpenArgs]?.url;
-        if (!url) {
-            return false;
+        const openArgs = xhr[sOpenArgs];
+        if (openArgs) {
+            const { url, method } = openArgs;
+            for (let index = rules.length-1; index >= 0; index--) {
+                const fn = rules[index];
+                const rv = fn(url, method);
+                if (typeof rv === 'boolean') {
+                    return rv;
+                }
+            }
         }
-        return regexs.some(r => r.test(url));
+        return false;
+    }
+
+    function addRuleInMemory(testFunc) {
+        rules.push(testFunc);
     }
 
     const xhrReadonlyProperties = new Set();
@@ -160,4 +173,22 @@
             }
         }
     }
+
+    // config
+    /** @type string[] */
+    const regexs = GM_getValue('urls', []).map(x => RegExp(x));
+    addRuleInMemory(url => {
+        return regexs.some(r => r.test(url)) ? true : null;
+    });
+
+    function addUrlRegex(regex) {
+        regexs.push(new RegExp(regex));
+        GM_setValue('urls', GM_getValue('urls', []).push(regex));
+    }
+
+    // export
+    unsafeWindow.corsProxy = {
+        addRuleInMemory,
+        addUrlRegex
+    };
 })();
