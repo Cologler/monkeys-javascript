@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                Match and Copy
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1
+// @version             0.2.0
 // @description         Generate copy command by matching text.
 // @author              Cologler (skyoflw@gmail.com)
 // @match               http*://*/*
@@ -17,12 +17,14 @@
 
     class RuleProxy {
         constructor(rule) {
+            this._name = null;
+            this._hostname = null;
             if (typeof rule === 'string') {
                 this._regex = new RegExp(rule);
-                this._name = null;
             } else {
                 this._regex = new RegExp(rule.regex);
                 this._name = rule.name;
+                this._hostname = rule.hostname;
             }
         }
 
@@ -36,10 +38,19 @@
                 };
             }
         }
+
+        matchHost() {
+            return !this._hostname || this._hostname === location.hostname;
+        }
     }
 
     let rules = (await GM.getValue('regexes', []))
-        .map(x => new RuleProxy(x));
+        .map(x => new RuleProxy(x))
+        .filter(x => x.matchHost());
+
+    if (!rules) {
+        return;
+    }
 
     let texts = new Set();
     function addCopyCommand(value, name) {
