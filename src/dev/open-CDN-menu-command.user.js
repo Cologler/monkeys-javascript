@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                Open CDN MenuCommand
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.0
+// @version             0.1.1
 // @description         register open CDN MenuCommand
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/*
@@ -54,7 +54,7 @@
 
         let url = `https://www.jsdelivr.com/package/gh/${metadata.owner}/${metadata.repo}`;
         if (metadata.path) {
-            url += `/${metadata.path}`;
+            url += `?path=${metadata.path}`;
         }
         return url;
     }
