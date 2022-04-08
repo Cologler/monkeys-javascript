@@ -78,6 +78,7 @@
 
     for (const cdn of getCDNInfos()) {
         GM.registerMenuCommand(cdn.name, () => {
+            console.info(`GoTo: ${cdn.url}`);
             GM.openInTab(cdn.url);
         });
     }
