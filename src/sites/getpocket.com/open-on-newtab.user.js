@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name               getpocket.com: open on new tab
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.0
+// @version            0.1.1
 // @description        try to take over the world!
 // @author             Cologler (skyoflw@gmail.com)
+// @match              https://getpocket.com/my-list
 // @match              https://getpocket.com/*/my-list
 // @grant              none
 // @noframes
