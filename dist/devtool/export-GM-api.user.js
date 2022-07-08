@@ -4,7 +4,7 @@
 // @namespace          https://github.com/Cologler/monkeys-javascript
 // @version            1.0
 // @description        export GM Api to global (window)
-// @author             cologler
+// @author             Cologler (skyoflw@gmail.com)
 // @match              http://*/*
 // @match              https://*/*
 // @grant              unsafeWindow
