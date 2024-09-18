@@ -2,7 +2,6 @@
 // @name                Jumper: github.com
 // @namespace           https://github.com/Cologler/monkeys-javascript
 // @version             0.1
-// @description         Created: 2024/09/18 19:00:27
 // @description         Jump to jsDelivr CDN
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/*
