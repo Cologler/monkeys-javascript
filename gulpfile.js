@@ -1,9 +1,11 @@
 const gulp = require('gulp');
-
-const del = require('del');
+const fs = require('node:fs');
 
 function build() {
-    del.sync(['dist/**/*']);
+    fs.rmSync('dist', {
+        recursive: true,
+        force: true,
+    });
 
     return gulp.src('src/**/*.js')
         .pipe(gulp.dest('dist'));

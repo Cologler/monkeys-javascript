@@ -1,8 +1,7 @@
 {
 	"devDependencies": {
-		"@types/greasemonkey": "^4.0.2",
-		"del": "^6.0.0",
-		"gulp": "^4.0.2"
+		"@violentmonkey/types": "^0.1.9",
+		"gulp": "^5.0.0"
 	},
 	"scripts": {
 		"build": "gulp build"
