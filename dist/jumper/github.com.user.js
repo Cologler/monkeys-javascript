@@ -1,8 +1,9 @@
 // ==UserScript==
-// @name                Open CDN MenuCommand
+// @name                Jumper: github.com
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.1
-// @description         register open CDN MenuCommand
+// @version             0.1
+// @description         Created: 2024/09/18 19:00:27
+// @description         Jump to jsDelivr CDN
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/*
 // @grant               GM.registerMenuCommand
@@ -11,6 +12,8 @@
 // @license             MIT
 // ==/UserScript==
 
+// for document, see: https://violentmonkey.github.io/api/gm/
+
 /**
  * @typedef GithubMetadata
  * @property {string} owner
@@ -18,13 +21,13 @@
  * @property {string} branch
  * @property {string} path
  */
-(function () {
+(function() {
     'use strict';
 
     /**
      *
      * @param {Location} location
-     * @returns {GithubMetadata}
+     * @returns {GithubMetadata | null}
      */
     function parseGithubMetadataFromLocation(location) {
         const match = location.pathname.match(
@@ -46,40 +49,25 @@
     /**
      * @param {GithubMetadata} metadata
      */
-    function getJsDelivrUrlFromGithubMetadata(metadata) {
+    function getJsDelivrUrl(metadata) {
         // browse packages:
         // https://www.jsdelivr.com/package/gh/Cologler/monkey-in-zoo-javascript
         // direct link:
         // https://cdn.jsdelivr.net/gh/Cologler/dom-builder-typescript@0.1.0/dist/dom-builder.js
 
-        let url = `https://www.jsdelivr.com/package/gh/${metadata.owner}/${metadata.repo}`;
+        //let url = `https://www.jsdelivr.com/package/gh/${metadata.owner}/${metadata.repo}`;
+        const url = new URL(`https://www.jsdelivr.com/package/gh/${metadata.owner}/${metadata.repo}`);
+        url.searchParams.set('tab', 'files');
         if (metadata.path) {
-            url += `?path=${metadata.path}`;
+            url.searchParams.set('path', metadata.path);
         }
-        return url;
+        return url.toString();
     }
 
-    function getCDNInfos() {
-        const cdns = [];
-
-        if (window.location.hostname === 'github.com') {
-            const githubMetadata = parseGithubMetadataFromLocation(window.location);
-            if (githubMetadata) {
-                const jsDelivrUrl = getJsDelivrUrlFromGithubMetadata(githubMetadata);
-                cdns.push({
-                    name: 'jsDelivr',
-                    url: jsDelivrUrl
-                });
-            }
+    GM.registerMenuCommand('jsDelivr', () => {
+        const metadata = parseGithubMetadataFromLocation(window.location);
+        if (metadata) {
+            GM.openInTab(getJsDelivrUrl(metadata));
         }
-
-        return cdns;
-    }
-
-    for (const cdn of getCDNInfos()) {
-        GM.registerMenuCommand(cdn.name, () => {
-            console.info(`GoTo: ${cdn.url}`);
-            GM.openInTab(cdn.url);
-        });
-    }
+    });
 })();
