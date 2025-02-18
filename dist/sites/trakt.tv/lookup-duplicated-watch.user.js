@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1
+// @version             0.1.1
 // @description         Created: 2024/09/18 23:20:59
 // @description         find duplicated watch and alert them
 // @author              Cologler (skyoflw@gmail.com)
@@ -19,17 +19,21 @@
     function showDuplicated() {
         const groups = new Map();
 
-        document.querySelectorAll('#history-items .grid-item').forEach(x => {
-            const meta = x.querySelector('meta');
-            const key = meta.content;
-            const title = x.querySelector('.titles-link').textContent;
-            const date = x.querySelector('.format-date').textContent;
-            const record = `${title} @ ${date}`;
-            // get or set
-            if (!groups.has(key)) {
-                groups.set(key, []);
+        const records = Array.from(document.querySelectorAll('#history-items .grid-item')).map(x => {
+            return {
+                url: x.querySelector('meta').content,
+                title: x.querySelector('.titles-link').textContent,
+                date: x.querySelector('.format-date').textContent
             }
-            groups.get(key).push(record);
+        });
+
+        console.debug(`Found ${records.length} records:`, records);
+
+        records.forEach(x => {
+            if (!groups.has(x.url)) {
+                groups.set(x.url, []);
+            }
+            groups.get(x.url).push(`${x.title} @ ${x.date}`);
         });
 
         const duplicated = Array.from(groups.entries())
@@ -48,7 +52,7 @@
             })
 
         if (duplicated.length > 0) {
-            let message = `Found ${duplicated.length} duplicated watch.`;
+            let message = `Found ${duplicated.length} duplicated watch from ${records.length} watches.`;
             for (const [key, values] of duplicated) {
                 for (const value of values) {
                     message += `\n  ${key} - ${value}`;

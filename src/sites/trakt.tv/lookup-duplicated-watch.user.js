@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.1
+// @version             0.1.2
 // @description         Created: 2024/09/18 23:20:59
 // @description         find duplicated watch and alert them
 // @author              Cologler (skyoflw@gmail.com)
@@ -52,7 +52,7 @@
             })
 
         if (duplicated.length > 0) {
-            let message = `Found ${duplicated.length} duplicated watch.`;
+            let message = `Found ${duplicated.length} duplicated watch from ${records.length} watches.`;
             for (const [key, values] of duplicated) {
                 for (const value of values) {
                     message += `\n  ${key} - ${value}`;
