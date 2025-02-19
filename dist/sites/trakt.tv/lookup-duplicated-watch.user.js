@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.3
+// @version             0.1.4
 // @description         Created: 2024/09/18 23:20:59
 // @description         find duplicated watch and alert them
 // @author              Cologler (skyoflw@gmail.com)
