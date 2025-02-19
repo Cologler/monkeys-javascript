@@ -61,7 +61,7 @@
             alert(`Found ${duplicated.length} duplicated watch.\n${duplicated.join('\n')}`);
         }
         else {
-            alert('No duplicated watch from ${records.length} watches..');
+            alert(`No duplicated watch from ${records.length} watches..`);
         }
     }
 
