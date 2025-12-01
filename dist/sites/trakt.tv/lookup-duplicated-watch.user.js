@@ -17,54 +17,70 @@
 (function() {
     'use strict';
 
-    function showDuplicated() {
+    /**
+     * @template T
+     * @param {T[]} array
+     * @param {(item: T) => any} selector
+     * @returns {Array<Array<T>>}
+     */
+    function groupBy(array, selector) {
         const groups = new Map();
+        for (const item of array) {
+            const key = selector(item);
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(item);
+        }
+        return Array.from(groups.values());
+    }
 
-        const records = Array.from(document.querySelectorAll('#history-items .grid-item')).map(x => {
+    function getRecords() {
+        return Array.from(document.querySelectorAll('#history-items .grid-item')).map(x => {
+            const url = x.querySelector('meta').content;
+            const match = url.match(/seasons\/(?<season>\d+)\/episodes\/(?<episode>\d+)/);
+
+            let season = undefined;
+            let episode = undefined;
+            if (match && match.groups) {
+                season = Number(match.groups.season);
+                episode = Number(match.groups.episode);
+            }
+
             return {
-                url: x.querySelector('meta').content,
+                url,
                 title: x.querySelector('.titles-link').textContent,
-                date: x.querySelector('.format-date').textContent
+                date: x.querySelector('.format-date').textContent,
+                season,
+                episode
             }
         });
+    }
 
+    function showDuplicated(fromAuto) {
+        const records = getRecords();
         console.debug(`Found ${records.length} records:`, records);
 
-        records.forEach(x => {
-            if (!groups.has(x.url)) {
-                groups.set(x.url, []);
-            }
-            groups.get(x.url).push(`${x.title} @ ${x.date}`);
-        });
-
-        const duplicated = Array.from(groups.entries())
-            .filter(([key, values]) => {
-                if (values.length > 1) {
-                    console.info(`${key} have ${values.length} items:`);
-                    for (const value of values) {
-                        console.info(`  ${value}`);
-                    }
-                    return true;
-                }
-                else {
-                    console.debug(`${key} only have one item.`);
-                    return false;
-                }
-            })
-
+        // find duplicated
+        const duplicated = groupBy(records, x => x.url).filter(x => x.length > 1);
         if (duplicated.length > 0) {
             let message = `Found ${duplicated.length} duplicated watches from ${records.length} watches.`;
-            for (const [key, values] of duplicated) {
+            for (const values of duplicated) {
+                message += `\n${values[0].url} have ${values.length} items:`;
                 for (const value of values) {
-                    message += `\n  ${key} - ${value}`;
+                    message += `\n  @${value.date}`;
                 }
             }
             alert(`Found ${duplicated.length} duplicated watch.\n${duplicated.join('\n')}`);
         }
-        else {
-            alert(`No duplicated watch from ${records.length} watches..`);
+        else if (!fromAuto) {
+            alert(`No duplicated watch from ${records.length} watches.`);
         }
     }
 
-    GM.registerMenuCommand('Lookup duplicated watch', showDuplicated);
+    if (typeof GM !== "undefined" && GM.registerMenuCommand) {
+        GM.registerMenuCommand('Lookup duplicated watch', () => showDuplicated(false));
+    }
+
+    showDuplicated(true);
 })();
