@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.7
+// @version             0.1.8
 // @description         Created: 2024/09/18 23:20:59
 // @description         find duplicated watch and alert them
 // @author              Cologler (skyoflw@gmail.com)
@@ -76,7 +76,7 @@
                         return a.season - b.season;
                     }
                     return a.episode - b.episode;
-                }).toReversed();
+                }).toReversed(); // from newest to oldest
 
                 console.debug(`[${showName}] Original watch:`,
                     originalArray.map(x => `S${x.season}E${x.episode}`));
@@ -89,6 +89,19 @@
                         const ep = originalArray[i];
                         errorMessages.push(`Found unsorted watch for show "${showName}": ${ep.season}x${ep.episode}`);
                         return;
+                    }
+                }
+
+                // find missing episodes
+                for (let i = 0; i < sortedArray.length - 1; i++) {
+                    const current = sortedArray[i];
+                    const next = sortedArray[i + 1];
+                    if (next &&
+                        current.season === next.season &&
+                        current.episode !== next.episode &&
+                        (current.episode - next.episode !== 1)) {
+                        errorMessages.push(
+                            `Found missing episode for show "${showName}": ${next.season}x${next.episode} -> ${current.season}x${current.episode}`);
                     }
                 }
             });
@@ -109,7 +122,7 @@
             alert(errorMessages.join('\n'));
         }
         else if (!fromAuto) {
-            alert(`No duplicated watch from ${records.length} watches.`);
+            alert(`No wrong watch from ${records.length} watches.`);
         }
     }
 
