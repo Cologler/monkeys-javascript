@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.6
+// @version             0.1.7
 // @description         Created: 2024/09/18 23:20:59
 // @description         find duplicated watch and alert them
 // @author              Cologler (skyoflw@gmail.com)
@@ -38,11 +38,14 @@
     function getRecords() {
         return Array.from(document.querySelectorAll('#history-items .grid-item')).map(x => {
             const url = x.querySelector('meta').content;
-            const match = url.match(/seasons\/(?<season>\d+)\/episodes\/(?<episode>\d+)/);
+            const match = url.match(
+                /^https:\/\/trakt.tv\/shows\/(?<show>[^\/]+)\/seasons\/(?<season>\d+)\/episodes\/(?<episode>\d+)\/?/);
 
+            let show = undefined;
             let season = undefined;
             let episode = undefined;
             if (match && match.groups) {
+                show = match.groups.show;
                 season = Number(match.groups.season);
                 episode = Number(match.groups.episode);
             }
@@ -51,6 +54,7 @@
                 url,
                 title: x.querySelector('.titles-link').textContent,
                 date: x.querySelector('.format-date').textContent,
+                show,
                 season,
                 episode
             }
@@ -61,17 +65,48 @@
         const records = getRecords();
         console.debug(`Found ${records.length} records:`, records);
 
+        const errorMessages = [];
+
+        // find wrong order
+        groupBy(records.filter(x => x.show), x => x.show).filter(x => x.length > 1)
+            .forEach(originalArray => {
+                const showName = originalArray[0].show;
+                const sortedArray = originalArray.toSorted((a, b) => {
+                    if (a.season !== b.season) {
+                        return a.season - b.season;
+                    }
+                    return a.episode - b.episode;
+                }).toReversed();
+
+                console.debug(`[${showName}] Original watch:`,
+                    originalArray.map(x => `S${x.season}E${x.episode}`));
+                console.debug(`[${showName}] Sorted watch:`,
+                    sortedArray.map(x => `S${x.season}E${x.episode}`));
+
+                // compare two array:
+                for (let i = 0; i < originalArray.length; i++) {
+                    if (originalArray[i] !== sortedArray[i]) {
+                        const ep = originalArray[i];
+                        errorMessages.push(`Found unsorted watch for show "${showName}": ${ep.season}x${ep.episode}`);
+                        return;
+                    }
+                }
+            });
+
         // find duplicated
         const duplicated = groupBy(records, x => x.url).filter(x => x.length > 1);
         if (duplicated.length > 0) {
-            let message = `Found ${duplicated.length} duplicated watches from ${records.length} watches.`;
+            errorMessages.push(`Found ${duplicated.length} duplicated watches from ${records.length} watches.`);
             for (const values of duplicated) {
-                message += `\n${values[0].url} have ${values.length} items:`;
+                errorMessages.push(`${values[0].url} have ${values.length} items:`);
                 for (const value of values) {
-                    message += `\n  @${value.date}`;
+                    errorMessages.push(`  @${value.date}`);
                 }
             }
-            alert(`Found ${duplicated.length} duplicated watch.\n${duplicated.join('\n')}`);
+        }
+
+        if (errorMessages.length > 0) {
+            alert(errorMessages.join('\n'));
         }
         else if (!fromAuto) {
             alert(`No duplicated watch from ${records.length} watches.`);
