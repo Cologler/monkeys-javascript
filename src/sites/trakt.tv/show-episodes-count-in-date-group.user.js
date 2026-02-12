@@ -2,7 +2,7 @@
 // @name                trakt.tv: show episodes count in date group
 // @name:zh-CN          trakt.tv: 在日期组显示剧集数量
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.0
+// @version             0.1.1
 // @description         Show episodes count in date group of trakt.tv history page
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://trakt.tv/users/*/history
@@ -43,5 +43,8 @@
         }
     }
 
-    updateTitle();
+    setTimeout(() => {
+        // date groups are dynamic create after a while
+        updateTitle();
+    }, 200);
 })();
