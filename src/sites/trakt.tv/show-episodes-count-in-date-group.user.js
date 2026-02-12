@@ -2,7 +2,7 @@
 // @name                trakt.tv: show episodes count in date group
 // @name:zh-CN          trakt.tv: 在日期组显示剧集数量
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.1
+// @version             0.1.2
 // @description         Show episodes count in date group of trakt.tv history page
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://trakt.tv/users/*/history
@@ -26,14 +26,17 @@
         /** @type {HTMLDivElement[]} */
         const groupRecords = [];
 
+        function updateCurrentGroup() {
+            if (groupTitle && !groupTitle[showStateMarker]) {
+                const count = groupRecords.length;
+                groupTitle.querySelector('h2.with-line').appendChild(document.createTextNode(` (${count} episodes)`));
+                groupTitle[showStateMarker] = true;
+            }
+        }
+
         for (const element of root.children) {
             if (element.classList.contains('dividers')) { // is title
-                if (groupTitle && !groupTitle[showStateMarker]) {
-                    const count = groupRecords.length;
-                    groupTitle.querySelector('h2.with-line').appendChild(document.createTextNode(` (${count} episodes)`));
-                    groupTitle[showStateMarker] = true;
-                }
-
+                updateCurrentGroup();
                 groupTitle = element;
                 groupRecords.length = 0;
             }
@@ -41,6 +44,7 @@
                 groupRecords.push(element);
             }
         }
+        updateCurrentGroup(); // the last group
     }
 
     setTimeout(() => {
