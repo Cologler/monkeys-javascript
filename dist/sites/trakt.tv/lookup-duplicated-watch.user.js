@@ -24,15 +24,17 @@
      * @returns {Array<Array<T>>}
      */
     function groupBy(array, selector) {
+        const groupKeys = [];
         const groups = new Map();
         for (const item of array) {
             const key = selector(item);
             if (!groups.has(key)) {
+                groupKeys.push(key);
                 groups.set(key, []);
             }
             groups.get(key).push(item);
         }
-        return Array.from(groups.values());
+        return groupKeys.map(key => groups.get(key));
     }
 
     function getRecords() {
