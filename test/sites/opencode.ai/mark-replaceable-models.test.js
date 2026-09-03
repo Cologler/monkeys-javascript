@@ -6,6 +6,7 @@ const {
     fetchPriceHtml,
     findReplacement,
     isNoMoreExpensive,
+    logReplacement,
     normalizeName,
     parseModel,
     parsePrice,
@@ -231,6 +232,32 @@ test('findReplacement selects the newest affordable model in the same family', f
 
     assert.equal(findReplacement(models, current).name, 'GPT 5.3 Codex');
     assert.equal(findReplacement(models, models[2]), undefined);
+});
+
+test('logReplacement reports model names and corresponding prices', function() {
+    const calls = [];
+    const current = {
+        name: 'GPT 5 Codex',
+        costs: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: null },
+    };
+    const replacement = {
+        name: 'GPT 5.3 Codex',
+        costs: { input: 1.75, output: 8, cacheRead: 0.175, cacheWrite: null },
+    };
+
+    logReplacement({
+        debug: function(...args) {
+            calls.push(args);
+        },
+    }, current, replacement);
+
+    assert.deepEqual(calls, [[
+        '[OpenCode replaceable models] GPT 5 Codex -> GPT 5.3 Codex',
+        {
+            current: current.costs,
+            replacement: replacement.costs,
+        },
+    ]]);
 });
 
 test('fetchPriceHtml uses the supplied fetch implementation', async function() {

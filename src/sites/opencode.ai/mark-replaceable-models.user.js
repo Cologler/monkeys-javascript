@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.1
+// @version            0.1.2
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -180,6 +180,23 @@ function findReplacement(models, current) {
         })[0];
 }
 
+/**
+ * Logs a model replacement with both price sets.
+ * @param {{ debug: Function }} logger The console-compatible logger.
+ * @param {PricedModel} current The model being replaced.
+ * @param {PricedModel} replacement The replacement model.
+ * @returns {void}
+ */
+function logReplacement(logger, current, replacement) {
+    logger.debug(
+        `[OpenCode replaceable models] ${current.name} -> ${replacement.name}`,
+        {
+            current: current.costs,
+            replacement: replacement.costs,
+        },
+    );
+}
+
 function installStyles(documentRoot) {
     const style = documentRoot.createElement('style');
     style.textContent = `
@@ -281,6 +298,7 @@ function createModelMarker(documentRoot, prices) {
                 },
             ).join('\n');
             current.row.querySelector('[data-slot="model-name"] > div')?.append(badge);
+            logReplacement(console, current, replacement);
         }
     };
 }
@@ -307,6 +325,7 @@ if (typeof module === 'object' && module.exports) {
         fetchPriceHtml,
         findReplacement,
         isNoMoreExpensive,
+        logReplacement,
         normalizeName,
         parseModel,
         parsePrice,
