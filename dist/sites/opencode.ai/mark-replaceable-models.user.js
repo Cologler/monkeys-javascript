@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.0
+// @version            0.1.1
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -79,17 +79,15 @@ function parseModel(name) {
 /**
  * Parses one price cell.
  * @param {string} value The displayed price.
- * @returns {number | null} The numeric price, or null when the operation is unavailable.
+ * @returns {number | null} The numeric price, or null when the value is unrecognized.
  */
 function parsePrice(value) {
     const text = value.trim();
-    if (/^(free|免费)$/i.test(text)) {
+    if (/^(free|免费|[-\u2013\u2014])$/i.test(text)) {
         return 0;
     }
-    if (/^[-\u2013\u2014]$/.test(text)) {
-        return null;
-    }
-    return Number(text.match(/\d+(?:\.\d+)?/)?.[0] ?? NaN);
+    const match = text.match(/^\$(\d+(?:\.\d+)?)$/);
+    return match ? Number(match[1]) : null;
 }
 
 /**

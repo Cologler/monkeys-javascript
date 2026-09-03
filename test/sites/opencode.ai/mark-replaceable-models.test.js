@@ -54,9 +54,14 @@ const parsePriceCases = [
     ['Free', 0],
     ['免费', 0],
     ['$3.125', 3.125],
-    ['-', null],
-    ['\u2013', null],
-    ['\u2014', null],
+    ['-', 0],
+    ['\u2013', 0],
+    ['\u2014', 0],
+    ['unknown', null],
+    ['', null],
+    ['3.125', null],
+    ['$3.125 extra', null],
+    ['USD 3.125', null],
 ];
 
 for (const [input, expected] of parsePriceCases) {
@@ -64,10 +69,6 @@ for (const [input, expected] of parsePriceCases) {
         assert.equal(parsePrice(input), expected);
     });
 }
-
-test('parsePrice rejects an unrecognized price', function() {
-    assert.ok(Number.isNaN(parsePrice('unknown')));
-});
 
 test('compareVersions compares numeric segments', function() {
     assert.equal(compareVersions([5], [5, 0]), 0);
@@ -118,6 +119,17 @@ test('isNoMoreExpensive compares all four price dimensions', function() {
         output: 2,
         cacheRead: 0.1,
     }, current), false);
+    assert.equal(isNoMoreExpensive({
+        input: 1,
+        output: null,
+        cacheRead: 0.1,
+        cacheWrite: 0,
+    }, {
+        input: 1,
+        output: null,
+        cacheRead: 0.1,
+        cacheWrite: 0,
+    }), true);
 });
 
 test('parsePrices keeps the lowest context tier and all four prices', function() {
@@ -166,10 +178,20 @@ test('parsePrices keeps the lowest context tier and all four prices', function()
         input: 0,
         output: 0,
         cacheRead: 0,
+        cacheWrite: 0,
+    });
+    assert.deepEqual(prices.get('invalid model 1'), {
+        input: 1,
+        output: null,
+        cacheRead: 0.1,
+        cacheWrite: 0,
+    });
+    assert.deepEqual(prices.get('incomplete model 1'), {
+        input: 1,
+        output: null,
+        cacheRead: null,
         cacheWrite: null,
     });
-    assert.equal(prices.has('invalid model 1'), false);
-    assert.equal(prices.has('incomplete model 1'), false);
 });
 
 test('findReplacement selects the newest affordable model in the same family', function() {
