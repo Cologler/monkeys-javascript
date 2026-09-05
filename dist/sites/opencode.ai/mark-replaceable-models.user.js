@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.2
+// @version            0.1.3
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -255,39 +255,33 @@ function readPricedModels(rows, prices) {
 }
 
 function createModelMarker(documentRoot, prices) {
-    let previousSignature = '';
     return function markModels() {
         const rows = Array.from(documentRoot.querySelectorAll('tr[data-slot="model-row"]'));
-        const signature = rows.map(function(row) {
-            return [
-                row.querySelector('[data-slot="model-name"] span')?.textContent,
-                row.querySelector('input[type="checkbox"]')?.checked,
-            ].join(':');
-        }).join('|');
-        if (signature === previousSignature) {
-            return;
-        }
-        previousSignature = signature;
-
-        documentRoot.querySelectorAll('.replaceable-model-badge').forEach(function(element) {
-            element.remove();
-        });
-        rows.forEach(function(row) {
-            row.removeAttribute('data-replaceable-model');
-        });
-
         const models = readPricedModels(rows, prices);
 
-        for (const current of models) {
-            if (!current.row.querySelector('input[type="checkbox"]')?.checked) {
-                continue;
-            }
-
-            const replacement = findReplacement(models, current);
+        for (const row of rows) {
+            const current = models.find(function(model) {
+                return model.row === row;
+            });
+            const replacement = current && row.querySelector('input[type="checkbox"]')?.checked
+                ? findReplacement(models, current)
+                : undefined;
+            const existingBadge = row.querySelector('.replaceable-model-badge');
             if (!replacement) {
+                existingBadge?.remove();
+                if (row.hasAttribute('data-replaceable-model')) {
+                    row.removeAttribute('data-replaceable-model');
+                }
                 continue;
             }
 
+            // Reconcile actual DOM after page rerenders without retriggering our observer indefinitely.
+            if (row.dataset.replaceableModel === replacement.name && existingBadge
+                && existingBadge.textContent === `Replace with ${replacement.name}`) {
+                continue;
+            }
+
+            existingBadge?.remove();
             current.row.dataset.replaceableModel = replacement.name;
             const badge = documentRoot.createElement('span');
             badge.className = 'replaceable-model-badge';
