@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 
 const {
     compareVersions,
-    fetchPriceHtml,
     findReplacement,
     isNoMoreExpensive,
     logReplacement,
@@ -258,39 +257,4 @@ test('logReplacement reports model names and corresponding prices', function() {
             replacement: replacement.costs,
         },
     ]]);
-});
-
-test('fetchPriceHtml uses the supplied fetch implementation', async function() {
-    let requestedUrl;
-    const html = await fetchPriceHtml(function(url) {
-        requestedUrl = url;
-        return Promise.resolve({
-            ok: true,
-            status: 200,
-            text: function() {
-                return Promise.resolve('<html>prices</html>');
-            },
-        });
-    });
-
-    assert.equal(requestedUrl, 'https://opencode.ai/docs/zh-cn/zen/');
-    assert.equal(html, '<html>prices</html>');
-});
-
-test('fetchPriceHtml reports HTTP failures without reading the body', async function() {
-    let bodyRead = false;
-    await assert.rejects(
-        fetchPriceHtml(function() {
-            return Promise.resolve({
-                ok: false,
-                status: 503,
-                text: function() {
-                    bodyRead = true;
-                    return Promise.resolve('unavailable');
-                },
-            });
-        }),
-        /Unable to load OpenCode Zen prices: HTTP 503/,
-    );
-    assert.equal(bodyRead, false);
 });
