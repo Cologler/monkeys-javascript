@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.3
+// @version            0.1.4
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -205,7 +205,11 @@ function installStyles(documentRoot) {
         }
 
         .replaceable-model-badge {
-            margin-left: 0.5rem;
+            flex: 1;
+            min-width: 0;
+            /* Keep replacement text out of the table's intrinsic column sizing. */
+            contain: inline-size;
+            overflow-wrap: anywhere;
             color: #ca8a04;
             font-size: 0.75rem;
             font-weight: 600;
