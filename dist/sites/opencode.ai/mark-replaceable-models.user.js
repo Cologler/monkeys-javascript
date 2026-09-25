@@ -2,11 +2,11 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.4
+// @version            0.1.5
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
-// @match              https://opencode.ai/workspace/*
+// @match              https://opencode.ai/console/wrk_*/models
 // @grant              none
 // @noframes
 // @license            MIT
@@ -250,7 +250,7 @@ function extractPriceRows(pricingDocument) {
 
 function readPricedModels(rows, prices) {
     return rows.map(function(row) {
-        const name = row.querySelector('[data-slot="model-name"] span')?.textContent.trim();
+        const name = row.cells[0]?.firstElementChild?.firstElementChild?.firstElementChild?.textContent.trim();
         const parsed = name && parseModel(name);
         return parsed && prices.has(normalizeName(name))
             ? { ...parsed, name, row, costs: prices.get(normalizeName(name)) }
@@ -260,14 +260,16 @@ function readPricedModels(rows, prices) {
 
 function createModelMarker(documentRoot, prices) {
     return function markModels() {
-        const rows = Array.from(documentRoot.querySelectorAll('tr[data-slot="model-row"]'));
+        const rows = Array.from(documentRoot.querySelectorAll('table tbody tr')).filter(function(row) {
+            return row.querySelector('input[data-slot="switch-input"]');
+        });
         const models = readPricedModels(rows, prices);
 
         for (const row of rows) {
             const current = models.find(function(model) {
                 return model.row === row;
             });
-            const replacement = current && row.querySelector('input[type="checkbox"]')?.checked
+            const replacement = current && row.querySelector('input[data-slot="switch-input"]')?.getAttribute('aria-checked') === 'true'
                 ? findReplacement(models, current)
                 : undefined;
             const existingBadge = row.querySelector('.replaceable-model-badge');
@@ -295,7 +297,7 @@ function createModelMarker(documentRoot, prices) {
                     return `${label}: ${current.costs[field] ?? '-'} -> ${replacement.costs[field] ?? '-'}`;
                 },
             ).join('\n');
-            current.row.querySelector('[data-slot="model-name"] > div')?.append(badge);
+            current.row.cells[0]?.firstElementChild?.firstElementChild?.append(badge);
             logReplacement(console, current, replacement);
         }
     };
@@ -305,9 +307,23 @@ async function main() {
     'use strict';
 
     installStyles(document);
-    const pricingHtml = await fetchPriceHtml(fetch);
-    const pricingDocument = new DOMParser().parseFromString(pricingHtml, 'text/html');
-    const prices = parsePrices(extractPriceRows(pricingDocument));
+    let prices;
+    try {
+        const pricingHtml = await fetchPriceHtml(fetch);
+        const pricingDocument = new DOMParser().parseFromString(pricingHtml, 'text/html');
+        prices = parsePrices(extractPriceRows(pricingDocument));
+        const pricedModels = Array.from(prices.values());
+        if (!Object.keys(PRICE_FIELDS).every(function(field) {
+            return pricedModels.some(function(costs) {
+                return costs[field] !== null;
+            });
+        })) {
+            throw new Error('One or more model price columns have no usable values.');
+        }
+    } catch (error) {
+        window.alert(`Unable to load OpenCode model prices from ${PRICE_URL}.\n${error}`);
+        throw error;
+    }
     const markModels = createModelMarker(document, prices);
 
     const observer = new MutationObserver(markModels);
