@@ -6,19 +6,41 @@ const vm = require('node:vm');
 test('marker survives rerenders and settles without repeated DOM writes', function() {
     const source = process.env.MARKER_SOURCE
         || 'src/sites/opencode.ai/mark-replaceable-models.user.js';
-    const context = vm.createContext({ module: { exports: {} }, console });
+    const context = vm.createContext({
+        module: { exports: {} },
+        console,
+        window: { alert: function(message) { assert.fail(message); } },
+    });
     vm.runInContext(fs.readFileSync(source, 'utf8'), context);
     let writes = 0;
     function createRow(name) {
         const row = {
             dataset: {},
-            checkbox: { checked: true },
+            checkbox: {
+                checked: true,
+                getAttribute: function() { return this.checked ? 'true' : 'false'; },
+            },
             badge: null,
+            cells: [
+                {
+                    firstElementChild: {
+                        firstElementChild: {
+                            firstElementChild: { textContent: name },
+                            append: function(badge) { row.badge = badge; writes += 1; },
+                        },
+                    },
+                },
+                {},
+                { textContent: '$1.00' },
+                { textContent: '$1.00' },
+                { textContent: '$0.00' },
+                { textContent: '$0.00' },
+                {},
+            ],
             querySelector: function(selector) {
-                if (selector === '[data-slot="model-name"] span') return { textContent: name };
-                if (selector === 'input[type="checkbox"]') return this.checkbox;
+                if (selector === 'input[data-slot="switch-input"]') return this.checkbox;
                 if (selector === '.replaceable-model-badge') return this.badge;
-                return { append: function(badge) { row.badge = badge; writes += 1; } };
+                return null;
             },
             hasAttribute: function() { return this.dataset.replaceableModel !== undefined; },
             removeAttribute: function() { delete this.dataset.replaceableModel; },
@@ -26,9 +48,23 @@ test('marker survives rerenders and settles without repeated DOM writes', functi
         return row;
     }
     let rows = [createRow('GPT 5'), createRow('GPT 5.1')];
+    const table = {
+        querySelector: function(selector) {
+            return selector === 'tbody input[data-slot="switch-input"]' ? rows[0]?.checkbox : null;
+        },
+        querySelectorAll: function(selector) {
+            if (selector === 'tbody tr') return rows;
+            if (selector === 'thead th') {
+                return ['Model', 'Features', 'Input', 'Output', 'Cache Read', 'Cache Write', 'Enabled'].map(
+                    function(textContent) { return { textContent }; },
+                );
+            }
+            return [];
+        },
+    };
     const documentRoot = {
         querySelectorAll: function(selector) {
-            return selector.startsWith('tr') ? rows : rows.map(function(row) { return row.badge; }).filter(Boolean);
+            return selector === 'table' ? [table] : [];
         },
         createElement: function() {
             return { remove: function() {
@@ -38,8 +74,7 @@ test('marker survives rerenders and settles without repeated DOM writes', functi
             } };
         },
     };
-    const costs = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 };
-    const mark = context.createModelMarker(documentRoot, new Map([['gpt 5', costs], ['gpt 5.1', costs]]));
+    const mark = context.createModelMarker(documentRoot);
     mark();
     assert.ok(rows[0].badge);
     rows[1].checkbox.checked = false;

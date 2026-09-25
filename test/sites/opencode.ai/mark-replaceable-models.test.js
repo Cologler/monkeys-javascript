@@ -9,7 +9,6 @@ const {
     normalizeName,
     parseModel,
     parsePrice,
-    parsePrices,
 } = require('../../../src/sites/opencode.ai/mark-replaceable-models.user.js');
 
 const normalizeNameCases = [
@@ -130,68 +129,6 @@ test('isNoMoreExpensive compares all four price dimensions', function() {
         cacheRead: 0.1,
         cacheWrite: 0,
     }), true);
-});
-
-test('parsePrices keeps the lowest context tier and all four prices', function() {
-    const prices = parsePrices([
-        {
-            name: 'Claude Sonnet 4.5 (\u2264 200K tokens)',
-            input: '$3.00',
-            output: '$15.00',
-            cacheRead: '$0.30',
-            cacheWrite: '$3.75',
-        },
-        {
-            name: 'Claude Sonnet 4.5 (> 200K tokens)',
-            input: '$6.00',
-            output: '$22.50',
-            cacheRead: '$0.60',
-            cacheWrite: '$7.50',
-        },
-        {
-            name: 'Muse Spark 1.3 Contributor Free',
-            input: 'Free',
-            output: 'Free',
-            cacheRead: 'Free',
-            cacheWrite: '-',
-        },
-        {
-            name: 'Invalid Model 1',
-            input: '$1.00',
-            output: 'unknown',
-            cacheRead: '$0.10',
-            cacheWrite: '-',
-        },
-        {
-            name: 'Incomplete Model 1',
-            input: '$1.00',
-        },
-    ]);
-
-    assert.deepEqual(prices.get('claude sonnet 4.5'), {
-        input: 3,
-        output: 15,
-        cacheRead: 0.3,
-        cacheWrite: 3.75,
-    });
-    assert.deepEqual(prices.get('muse spark 1.3 free'), {
-        input: 0,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-    });
-    assert.deepEqual(prices.get('invalid model 1'), {
-        input: 1,
-        output: null,
-        cacheRead: 0.1,
-        cacheWrite: 0,
-    });
-    assert.deepEqual(prices.get('incomplete model 1'), {
-        input: 1,
-        output: null,
-        cacheRead: null,
-        cacheWrite: null,
-    });
 });
 
 test('findReplacement selects the newest affordable model in the same family', function() {

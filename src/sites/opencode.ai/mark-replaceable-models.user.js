@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.5
+// @version            0.1.6
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -12,12 +12,11 @@
 // @license            MIT
 // ==/UserScript==
 
-const PRICE_URL = 'https://opencode.ai/docs/zh-cn/zen/';
 const PRICE_FIELDS = {
-    input: '输入',
-    output: '输出',
-    cacheRead: '缓存读取',
-    cacheWrite: '缓存写入',
+    input: 'Input',
+    output: 'Output',
+    cacheRead: 'Cache Read',
+    cacheWrite: 'Cache Write',
 };
 
 /**
@@ -29,15 +28,6 @@ const PRICE_FIELDS = {
  */
 
 /**
- * @typedef {object} RawPriceRow
- * @property {string} name The displayed model name.
- * @property {string} input The displayed input price.
- * @property {string} output The displayed output price.
- * @property {string} cacheRead The displayed cache-read price.
- * @property {string} cacheWrite The displayed cache-write price.
- */
-
-/**
  * @typedef {object} PricedModel
  * @property {string} name The displayed model name.
  * @property {string} family The normalized model family.
@@ -46,7 +36,7 @@ const PRICE_FIELDS = {
  */
 
 /**
- * Normalizes a model name for matching between the pricing and workspace pages.
+ * Normalizes a model name for family comparisons.
  * @param {string} value The model name.
  * @returns {string} The normalized model name.
  */
@@ -122,47 +112,6 @@ function isNoMoreExpensive(candidate, current) {
 }
 
 /**
- * Fetches the OpenCode Zen pricing page.
- * @param {typeof fetch} fetcher The fetch implementation.
- * @returns {Promise<string>} The pricing page HTML.
- */
-async function fetchPriceHtml(fetcher) {
-    const response = await fetcher(PRICE_URL);
-    if (!response.ok) {
-        throw new Error(`Unable to load OpenCode Zen prices: HTTP ${response.status}`);
-    }
-    return response.text();
-}
-
-/**
- * Parses pricing-table rows, retaining only the lowest context tier.
- * @param {RawPriceRow[]} rows The pricing-table rows.
- * @returns {Map<string, Prices>} Prices keyed by normalized model name.
- */
-function parsePrices(rows) {
-    const prices = new Map();
-    for (const row of rows) {
-        if (!row.name || /\(\s*>/.test(row.name)) {
-            continue;
-        }
-
-        const name = row.name.replace(/\s+\([^)]*\)\s*$/, '');
-        const costs = {
-            input: parsePrice(row.input ?? ''),
-            output: parsePrice(row.output ?? ''),
-            cacheRead: parsePrice(row.cacheRead ?? ''),
-            cacheWrite: parsePrice(row.cacheWrite ?? ''),
-        };
-        if (Object.values(costs).every(function(cost) {
-            return cost === null || Number.isFinite(cost);
-        })) {
-            prices.set(normalizeName(name), costs);
-        }
-    }
-    return prices;
-}
-
-/**
  * Finds the newest same-family model whose four prices do not exceed the current model.
  * @param {PricedModel[]} models All priced models.
  * @param {PricedModel} current The current model.
@@ -218,52 +167,87 @@ function installStyles(documentRoot) {
     documentRoot.head.append(style);
 }
 
-function extractPriceRows(pricingDocument) {
-    const pricingTable = Array.from(pricingDocument.querySelectorAll('table')).find(function(table) {
-        const headers = Array.from(table.querySelectorAll('th'), function(cell) {
-            return cell.textContent.trim();
-        });
-        return Object.values(PRICE_FIELDS).every(function(label) {
-            return headers.includes(label);
-        });
-    });
-    if (!pricingTable) {
-        throw new Error('Unable to find the OpenCode Zen pricing table.');
-    }
-
-    const headers = Array.from(pricingTable.querySelectorAll('th'), function(cell) {
+/**
+ * Locates the four price columns in the current models table.
+ * @param {HTMLTableElement} table The workspace models table.
+ * @returns {Record<string, number>} Column indexes keyed by price field.
+ */
+function getPriceColumns(table) {
+    const headers = Array.from(table.querySelectorAll('thead th'), function(cell) {
         return cell.textContent.trim();
     });
-    return Array.from(pricingTable.querySelectorAll('tbody tr'), function(row) {
-        const cells = Array.from(row.cells, function(cell) {
-            return cell.textContent.trim();
-        });
-        return {
-            name: cells[0],
-            input: cells[headers.indexOf(PRICE_FIELDS.input)],
-            output: cells[headers.indexOf(PRICE_FIELDS.output)],
-            cacheRead: cells[headers.indexOf(PRICE_FIELDS.cacheRead)],
-            cacheWrite: cells[headers.indexOf(PRICE_FIELDS.cacheWrite)],
-        };
-    });
+    const columns = {};
+    for (const [field, label] of Object.entries(PRICE_FIELDS)) {
+        const index = headers.indexOf(label);
+        if (index < 0) {
+            throw new Error(`Missing ${label} price column.`);
+        }
+        columns[field] = index;
+    }
+    return columns;
 }
 
-function readPricedModels(rows, prices) {
+/**
+ * Reads all four displayed prices from one model row.
+ * @param {HTMLTableRowElement} row The model row.
+ * @param {Record<string, number>} columns The price column indexes.
+ * @returns {Prices} The parsed prices.
+ */
+function readModelCosts(row, columns) {
+    return {
+        input: parsePrice(row.cells[columns.input]?.textContent ?? ''),
+        output: parsePrice(row.cells[columns.output]?.textContent ?? ''),
+        cacheRead: parsePrice(row.cells[columns.cacheRead]?.textContent ?? ''),
+        cacheWrite: parsePrice(row.cells[columns.cacheWrite]?.textContent ?? ''),
+    };
+}
+
+function readPricedModels(rows, costsByRow) {
     return rows.map(function(row) {
         const name = row.cells[0]?.firstElementChild?.firstElementChild?.firstElementChild?.textContent.trim();
         const parsed = name && parseModel(name);
-        return parsed && prices.has(normalizeName(name))
-            ? { ...parsed, name, row, costs: prices.get(normalizeName(name)) }
+        return parsed
+            ? { ...parsed, name, row, costs: costsByRow.get(row) }
             : null;
     }).filter(Boolean);
 }
 
-function createModelMarker(documentRoot, prices) {
+function createModelMarker(documentRoot) {
+    let priceErrorShown = false;
     return function markModels() {
-        const rows = Array.from(documentRoot.querySelectorAll('table tbody tr')).filter(function(row) {
+        const table = Array.from(documentRoot.querySelectorAll('table')).find(function(candidate) {
+            return candidate.querySelector('tbody input[data-slot="switch-input"]');
+        });
+        if (!table) {
+            return;
+        }
+
+        const rows = Array.from(table.querySelectorAll('tbody tr')).filter(function(row) {
             return row.querySelector('input[data-slot="switch-input"]');
         });
-        const models = readPricedModels(rows, prices);
+        let costsByRow;
+        try {
+            const columns = getPriceColumns(table);
+            costsByRow = new Map(rows.map(function(row) {
+                return [row, readModelCosts(row, columns)];
+            }));
+            const costs = Array.from(costsByRow.values());
+            if (!Object.keys(PRICE_FIELDS).every(function(field) {
+                return costs.some(function(modelCosts) {
+                    return modelCosts[field] !== null;
+                });
+            })) {
+                throw new Error('One or more model price columns have no usable values.');
+            }
+        } catch (error) {
+            if (!priceErrorShown) {
+                priceErrorShown = true;
+                console.error('[OpenCode replaceable models]', error);
+                window.alert(`Unable to read model prices from this page.\n${error}`);
+            }
+            return;
+        }
+        const models = readPricedModels(rows, costsByRow);
 
         for (const row of rows) {
             const current = models.find(function(model) {
@@ -281,9 +265,15 @@ function createModelMarker(documentRoot, prices) {
                 continue;
             }
 
+            const badgeTitle = Object.entries(PRICE_FIELDS).map(
+                function([field, label]) {
+                    return `${label}: ${current.costs[field] ?? '-'} -> ${replacement.costs[field] ?? '-'}`;
+                },
+            ).join('\n');
             // Reconcile actual DOM after page rerenders without retriggering our observer indefinitely.
             if (row.dataset.replaceableModel === replacement.name && existingBadge
-                && existingBadge.textContent === `Replace with ${replacement.name}`) {
+                && existingBadge.textContent === `Replace with ${replacement.name}`
+                && existingBadge.title === badgeTitle) {
                 continue;
             }
 
@@ -292,42 +282,21 @@ function createModelMarker(documentRoot, prices) {
             const badge = documentRoot.createElement('span');
             badge.className = 'replaceable-model-badge';
             badge.textContent = `Replace with ${replacement.name}`;
-            badge.title = Object.entries(PRICE_FIELDS).map(
-                function([field, label]) {
-                    return `${label}: ${current.costs[field] ?? '-'} -> ${replacement.costs[field] ?? '-'}`;
-                },
-            ).join('\n');
+            badge.title = badgeTitle;
             current.row.cells[0]?.firstElementChild?.firstElementChild?.append(badge);
             logReplacement(console, current, replacement);
         }
     };
 }
 
-async function main() {
+function main() {
     'use strict';
 
     installStyles(document);
-    let prices;
-    try {
-        const pricingHtml = await fetchPriceHtml(fetch);
-        const pricingDocument = new DOMParser().parseFromString(pricingHtml, 'text/html');
-        prices = parsePrices(extractPriceRows(pricingDocument));
-        const pricedModels = Array.from(prices.values());
-        if (!Object.keys(PRICE_FIELDS).every(function(field) {
-            return pricedModels.some(function(costs) {
-                return costs[field] !== null;
-            });
-        })) {
-            throw new Error('One or more model price columns have no usable values.');
-        }
-    } catch (error) {
-        window.alert(`Unable to load OpenCode model prices from ${PRICE_URL}.\n${error}`);
-        throw error;
-    }
-    const markModels = createModelMarker(document, prices);
+    const markModels = createModelMarker(document);
 
     const observer = new MutationObserver(markModels);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
     document.addEventListener('change', markModels);
     markModels();
 }
@@ -336,17 +305,17 @@ async function main() {
 if (typeof module === 'object' && module.exports) {
     module.exports = {
         compareVersions,
-        fetchPriceHtml,
         findReplacement,
         isNoMoreExpensive,
         logReplacement,
         normalizeName,
         parseModel,
         parsePrice,
-        parsePrices,
     };
 } else {
-    main().catch(function(error) {
+    try {
+        main();
+    } catch (error) {
         console.error('[OpenCode replaceable models]', error);
-    });
+    }
 }
