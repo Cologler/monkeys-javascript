@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name                CORS Proxy
+// @name:zh-CN          CORS 代理
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.0
+// @version             0.1.1
 // @description         proxy xhr to GM_xmlhttpRequest to prevent CORS issues.
+// @description:zh-CN   通过 GM_xmlhttpRequest 代理 XMLHttpRequest 请求，避免 CORS 跨域限制
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/Cologler/monkeys-javascript
 // @grant               GM_xmlhttpRequest

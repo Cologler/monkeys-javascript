@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name                Jumper: github.com
+// @name:zh-CN          跳转工具：github.com
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1
+// @version             0.2
 // @description         Jump to jsDelivr CDN
+// @description:zh-CN   从 GitHub 跳转到对应的 jsDelivr CDN 页面
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/*
 // @grant               GM.registerMenuCommand

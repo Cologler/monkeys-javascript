@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name               Hupu: Four-Column LoL Scores
+// @name:zh-CN         虎扑：英雄联盟四栏评分
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.2
+// @version            0.1.3
 // @description        Browse LoL matches, games, players, and comments in four persistent columns
+// @description:zh-CN  在四个固定分栏中浏览英雄联盟的比赛、对局、选手和评论
 // @author             Cologler (skyoflw@gmail.com)
 // @match              https://bbsactivity.hupu.com/pc-viewer/index.html*
 // @match              https://offline-download.hupu.com/online/prod/*/team-schedule-v2.html*

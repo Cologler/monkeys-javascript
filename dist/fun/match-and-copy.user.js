@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name                Match and Copy
+// @name:zh-CN          匹配并复制
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.2.0
+// @version             0.2.1
 // @description         Generate copy command by matching text.
+// @description:zh-CN   通过匹配文本生成复制命令
 // @author              Cologler (skyoflw@gmail.com)
 // @match               http*://*/*
 // @grant               GM.getValue

@@ -2,8 +2,9 @@
 // @name               devtool: export GM Api to global
 // @name:zh-CN         devtool: 在控制台启用 GM API
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            1.0
+// @version            1.1
 // @description        export GM Api to global (window)
+// @description:zh-CN  将 GM API 导出到全局 window 对象，便于在控制台调用
 // @author             Cologler (skyoflw@gmail.com)
 // @match              http://*/*
 // @match              https://*/*

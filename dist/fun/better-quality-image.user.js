@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name                Better Quality Image
+// @name:zh-CN          更高清的图片
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1
+// @version             0.2
 // @description         switch image src to high quality version.
+// @description:zh-CN   将图片地址切换为高清版本
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://tieba.baidu.com/p/*
 // @grant               none
