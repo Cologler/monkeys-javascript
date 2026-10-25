@@ -2,7 +2,7 @@
 
 - Never edit files under `dist/` directly.
 - Add JSDoc to public APIs, including parameter and return types.
-- Do not use arrow function expressions; define functions with `function` syntax.
+- Use function declarations for named functions (for example, `function foo() {}`), rather than variable-bound arrow functions such as `const foo = () => {}`. Prefer arrow functions for callbacks passed as arguments.
 - Before an agent creates a commit, automatically bump the version of each userscript included in that commit.
 
 ## Userscript metadata localization
