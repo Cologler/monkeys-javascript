@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseFileMetadata, getFileLinks } = require('../../../src/sites/github.com/raw-options.user.js');
+const { parseFileMetadata, getFileLinks, getReleaseLinks, createReleaseLookup } = require('../../../src/sites/github.com/raw-options.user.js');
 
 const commit = '1234567890abcdef1234567890abcdef12345678';
 const repository = 'https://github.com/owner/repo';
@@ -75,4 +75,116 @@ test('rejects malformed encoding and foreign link origins', function() {
         `${repository}/blob/main/file.js`, `${repository}/tree/main`,
         'https://example.com/owner/repo/raw/main/file.js', null,
     ), null);
+});
+
+test('release links use the returned tag with an explicit GitHub tag ref', function() {
+    const links = getReleaseLinks({ owner: 'owner', repo: 'repo', path: 'src/a #中%.js' }, 'release/v1.2');
+    assert.deepEqual(links.map(function(link) { return link.url; }), [
+        `${repository}/raw/refs/tags/release%2Fv1.2/src/a%20%23%E4%B8%AD%25.js`,
+        'https://cdn.jsdelivr.net/gh/owner/repo@release%2Fv1.2/src/a%20%23%E4%B8%AD%25.js',
+        'https://rawcdn.githack.com/owner/repo/release%2Fv1.2/src/a%20%23%E4%B8%AD%25.js',
+    ]);
+});
+
+test('concurrent and repeated lookups share one request per case-insensitive repository', async function() {
+    let calls = 0;
+    let finish;
+    const response = new Promise(function(resolve) { finish = resolve; });
+    const lookup = createReleaseLookup(function(url, options) {
+        calls += 1;
+        assert.equal(url, 'https://api.github.com/repos/Owner/Repo/releases/latest');
+        assert.equal(options.credentials, 'omit');
+        return response;
+    });
+    const first = lookup('Owner', 'Repo');
+    const second = lookup('owner', 'repo');
+    assert.equal(first, second);
+    finish(new Response(JSON.stringify({ tag_name: 'v1.2.3' })));
+    assert.deepEqual(await first, { tag: 'v1.2.3', error: null });
+    assert.deepEqual(await lookup('OWNER', 'REPO'), { tag: 'v1.2.3', error: null });
+    assert.equal(calls, 1);
+});
+
+test('memory cache expires, isolates repositories, and starts empty in a new instance', async function() {
+    let time = 1000;
+    let calls = 0;
+    function clock() { return time; }
+    async function fetchRelease() {
+        calls += 1;
+        return new Response(JSON.stringify({ tag_name: `v${calls}` }));
+    }
+    const first = createReleaseLookup(fetchRelease, clock);
+    assert.equal((await first('owner', 'repo')).tag, 'v1');
+    assert.equal((await first('owner', 'repo')).tag, 'v1');
+    assert.equal(calls, 1);
+    assert.equal((await first('owner', 'other')).tag, 'v2');
+    time += 15 * 60 * 1000;
+    assert.equal((await first('owner', 'repo')).tag, 'v3');
+    const reloaded = createReleaseLookup(fetchRelease, clock);
+    assert.equal((await reloaded('owner', 'repo')).tag, 'v4');
+    assert.equal(calls, 4);
+});
+
+test('missing latest releases are cached for fifteen minutes', async function() {
+    let time = 0;
+    let calls = 0;
+    const lookup = createReleaseLookup(async function() {
+        calls += 1;
+        return new Response('{}', { status: 404 });
+    }, function() { return time; });
+    assert.deepEqual(await lookup('owner', 'repo'), { tag: null, error: null });
+    time = 15 * 60 * 1000 - 1;
+    assert.deepEqual(await lookup('owner', 'repo'), { tag: null, error: null });
+    assert.equal(calls, 1);
+    time += 1;
+    await lookup('owner', 'repo');
+    assert.equal(calls, 2);
+});
+
+test('rate-limit failures remain cached until both retry-after and reset have elapsed', async function() {
+    let time = 0;
+    let calls = 0;
+    const lookup = createReleaseLookup(async function() {
+        calls += 1;
+        return calls === 1 ? new Response('{}', {
+            status: 403,
+            headers: { 'retry-after': '120', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '600' },
+        }) : new Response(JSON.stringify({ tag_name: 'v2' }));
+    }, function() { return time; });
+    const result = await lookup('owner', 'repo');
+    assert.equal(result.tag, null);
+    assert.match(result.error, /HTTP 403/);
+    time = 600000 - 1;
+    assert.deepEqual(await lookup('owner', 'repo'), result);
+    assert.equal(calls, 1);
+    time += 1;
+    assert.equal((await lookup('owner', 'repo')).tag, 'v2');
+    assert.equal(calls, 2);
+});
+
+test('network failures are distinct from missing releases and retry after one minute', async function() {
+    let time = 0;
+    let calls = 0;
+    const lookup = createReleaseLookup(async function() {
+        calls += 1;
+        throw new Error('Network failed');
+    }, function() { return time; });
+    const result = await lookup('owner', 'repo');
+    assert.match(result.error, /Network failed/);
+    assert.deepEqual(await lookup('owner', 'repo'), result);
+    assert.equal(calls, 1);
+    time = 60000;
+    await lookup('owner', 'repo');
+    assert.equal(calls, 2);
+});
+
+test('invalid, draft, and prerelease responses do not produce release links', async function() {
+    for (const body of [null, {}, { tag_name: '' }, { tag_name: 'v1', draft: true }, { tag_name: 'v1', prerelease: true }]) {
+        const lookup = createReleaseLookup(async function() {
+            return new Response(JSON.stringify(body));
+        });
+        const result = await lookup('owner', 'repo');
+        assert.equal(result.tag, null);
+        assert.match(result.error, /Invalid release response/);
+    }
 });

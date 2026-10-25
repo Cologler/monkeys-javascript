@@ -2,9 +2,9 @@
 // @name                GitHub: Raw and CDN Links
 // @name:zh-CN          GitHub：Raw 与 CDN 链接
 // @namespace           https://github.com/Cologler/monkeys-javascript
-// @version             0.1.1
-// @description         Open GitHub files through pinned Raw and CDN links beside the Raw button
-// @description:zh-CN   在 Raw 按钮旁提供锁定版本的 Raw 和 CDN 文件链接
+// @version             0.2.1
+// @description         Open GitHub files through Raw and CDN links for commits and the latest release tag
+// @description:zh-CN   提供 GitHub 文件的提交锁定版及最新 Release 标签对应的 Raw 和 CDN 链接
 // @author              Cologler (skyoflw@gmail.com)
 // @match               https://github.com/*
 // @run-at              document-idle
@@ -21,10 +21,16 @@
  * @property {string} path
  * @property {string | null} commit The last commit affecting the displayed file.
  */
+/**
+ * @typedef LatestReleaseResult
+ * @property {string | null} tag The latest published release tag, if available.
+ * @property {string | null} error A lookup failure, distinct from a missing release.
+ */
 (function() {
     'use strict';
 
     const MENU_ID = 'monkeys-github-raw-options';
+    const RELEASE_CACHE_TTL = 15 * 60 * 1000;
     let current = null;
     let scheduled = false;
 
@@ -125,6 +131,124 @@
         return links;
     }
 
+    /**
+     * Uses the release's actual tag rather than a moving latest-version alias.
+     * @param {GithubFileMetadata} metadata The displayed file.
+     * @param {string} tag The release tag returned by GitHub.
+     * @returns {{label: string, url: string}[]} Tag-specific Raw and CDN links.
+     */
+    function getReleaseLinks(metadata, tag) {
+        const repository = `${encodeURIComponent(metadata.owner)}/${encodeURIComponent(metadata.repo)}`;
+        const path = metadata.path.split('/').map(encodeURIComponent).join('/');
+        const ref = encodeURIComponent(tag);
+        return [
+            { label: 'Raw · latest release', url: `https://github.com/${repository}/raw/refs/tags/${ref}/${path}` },
+            { label: 'jsDelivr · latest release', url: `https://cdn.jsdelivr.net/gh/${repository}@${ref}/${path}` },
+            { label: 'raw.githack · latest release', url: `https://rawcdn.githack.com/${repository}/${ref}/${path}` },
+        ];
+    }
+
+    /**
+     * Caches repository lookups in memory across file navigation in the same page.
+     * @param {typeof fetch} fetcher The HTTP client.
+     * @param {function(): number} [now=Date.now] The cache clock in milliseconds.
+     * @returns {function(string, string): Promise<LatestReleaseResult>} A deduplicated release lookup.
+     */
+    function createReleaseLookup(fetcher, now = Date.now) {
+        const cache = new Map();
+        const pending = new Map();
+        return function(owner, repo) {
+            const key = `${MENU_ID}:release:${owner.toLowerCase()}/${repo.toLowerCase()}`;
+            if (pending.has(key)) {
+                return pending.get(key);
+            }
+            const cached = cache.get(key);
+            if (cached && cached.expires > now()) {
+                return Promise.resolve({ tag: cached.tag, error: cached.error });
+            }
+
+            async function load() {
+                let result;
+                let ttl = 60 * 1000;
+                try {
+                    const response = await fetcher(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases/latest`, {
+                        headers: { Accept: 'application/vnd.github+json' },
+                        credentials: 'omit',
+                        signal: AbortSignal.timeout(10000),
+                    });
+                    if (response.status === 403 || response.status === 429) {
+                        // Respect GitHub's backoff so reopening the menu cannot exhaust the API quota.
+                        const retryAfter = Number(response.headers.get('retry-after')) * 1000;
+                        const reset = Number(response.headers.get('x-ratelimit-reset')) * 1000 - now();
+                        if (Number.isFinite(retryAfter)) {
+                            ttl = Math.max(ttl, retryAfter);
+                        }
+                        if (response.headers.get('x-ratelimit-remaining') === '0' && Number.isFinite(reset)) {
+                            ttl = Math.max(ttl, reset);
+                        }
+                    }
+                    if (response.status === 404) {
+                        result = { tag: null, error: null };
+                    } else {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const release = await response.json();
+                        if (typeof release?.tag_name !== 'string' || !release.tag_name.trim()
+                            || release.draft || release.prerelease) {
+                            throw new Error('Invalid release response');
+                        }
+                        result = { tag: release.tag_name, error: null };
+                    }
+                    ttl = RELEASE_CACHE_TTL;
+                } catch (error) {
+                    result = { tag: null, error: `Latest release lookup failed: ${error.message}` };
+                }
+                const entry = { ...result, expires: now() + ttl };
+                cache.set(key, entry);
+                return result;
+            }
+
+            const request = load().finally(function() { pending.delete(key); });
+            pending.set(key, request);
+            return request;
+        };
+    }
+
+    function appendLinks(container, entries) {
+        for (const entry of entries) {
+            const link = document.createElement('a');
+            link.href = entry.url;
+            link.textContent = entry.label;
+            link.title = entry.url;
+            link.setAttribute('role', 'menuitem');
+            link.tabIndex = -1;
+            container.append(link);
+        }
+    }
+
+    async function updateReleaseLinks(metadata, menu, section) {
+        const note = document.createElement('small');
+        note.setAttribute('role', 'status');
+        note.textContent = 'Loading latest release…';
+        section.replaceChildren(note);
+        positionMenu();
+        const result = await lookupRelease(metadata.owner, metadata.repo);
+        // A request belongs to its repository; it must not populate a menu mounted after navigation.
+        if (!menu.isConnected || section.firstElementChild !== note) {
+            return;
+        }
+        if (result.error) {
+            note.textContent = result.error;
+        } else if (!result.tag) {
+            note.textContent = 'No public latest release found.';
+        } else {
+            note.textContent = `Latest release: ${result.tag}`;
+            appendLinks(section, getReleaseLinks(metadata, result.tag));
+        }
+        positionMenu();
+    }
+
     function removeMenu() {
         if (current) {
             current.wrapper.remove();
@@ -195,25 +319,21 @@
         menu.setAttribute('aria-label', 'Raw and CDN links');
         button.setAttribute('popovertarget', menu.id);
         button.setAttribute('aria-controls', menu.id);
-        for (const entry of getFileLinks(metadata)) {
-            const link = document.createElement('a');
-            link.href = entry.url;
-            link.textContent = entry.label;
-            link.title = entry.url;
-            link.setAttribute('role', 'menuitem');
-            link.tabIndex = -1;
-            menu.append(link);
-        }
+        appendLinks(menu, getFileLinks(metadata));
         if (!metadata.commit) {
             const note = document.createElement('small');
             note.textContent = 'Pinned links unavailable until the file commit loads.';
             menu.append(note);
         }
+        const releaseSection = document.createElement('div');
+        releaseSection.className = 'release-links';
+        menu.append(releaseSection);
         menu.addEventListener('toggle', function(event) {
             button.setAttribute('aria-expanded', String(event.newState === 'open'));
             if (event.newState === 'open') {
                 positionMenu();
                 menu.querySelector('a').focus();
+                updateReleaseLinks(metadata, menu, releaseSection);
             }
         });
         menu.addEventListener('keydown', function(event) {
@@ -262,10 +382,11 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { parseFileMetadata, getFileLinks };
+        module.exports = { parseFileMetadata, getFileLinks, getReleaseLinks, createReleaseLookup };
         return;
     }
 
+    const lookupRelease = createReleaseLookup(window.fetch.bind(window));
     const style = document.createElement('style');
     style.textContent = `
         #${MENU_ID} button { width: 28px; padding: 0; }
@@ -275,10 +396,13 @@
             border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 8px;
             box-shadow: var(--shadow-floating-small, 0 8px 24px #0003); font-size: 14px; }
         #${MENU_ID}-menu a { display: block; padding: 7px 10px; border-radius: 4px;
-            color: inherit; text-decoration: none; white-space: nowrap; }
+            color: inherit; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #${MENU_ID}-menu a:hover, #${MENU_ID}-menu a:focus-visible {
             background: var(--control-transparent-bgColor-hover, #818b981a); }
-        #${MENU_ID}-menu small { display: block; padding: 7px 10px; color: var(--fgColor-muted, #59636e); }
+        #${MENU_ID}-menu small { display: block; padding: 7px 10px; color: var(--fgColor-muted, #59636e);
+            overflow-wrap: anywhere; }
+        #${MENU_ID}-menu .release-links { margin-top: 6px; padding-top: 6px;
+            border-top: 1px solid var(--borderColor-default, #d1d9e0); }
     `;
     document.head.append(style);
     new MutationObserver(scheduleMount).observe(document.body, { childList: true, subtree: true, attributes: true,

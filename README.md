@@ -14,7 +14,7 @@ My userscripts collection.
 | --- | --- |
 | [Amazon: Manage Content Docs API](dist/sites/amazon.com/manage-content-docs-api.user.js) | Select personal documents from the browser console. |
 | [Bilibili: Prediction Earnings](dist/sites/bilibili.com/prediction-earnings.user.js) | Show prediction profit by event, phase, and all time. |
-| [GitHub: Raw and CDN Links](dist/sites/github.com/raw-options.user.js) | Add a compact Raw dropdown with pinned Raw, jsDelivr, and raw.githack file links. |
+| [GitHub: Raw and CDN Links](dist/sites/github.com/raw-options.user.js) | Add a compact Raw dropdown with Raw, jsDelivr, and raw.githack links for commits and the latest release tag. |
 | [Hupu: Four-Column LoL Scores](dist/sites/hupu.com/four-column-scores.user.js) | Browse LoL scores and comments in four columns. |
 | [OpenCode: Mark Replaceable Models](dist/sites/opencode.ai/mark-replaceable-models.user.js) | Mark models with newer replacements that cost no more. |
 | [Trakt: Lookup Duplicated Watch](dist/sites/trakt.tv/lookup-duplicated-watch.user.js) | Find duplicate watches, missing episodes, and episode order problems. |
