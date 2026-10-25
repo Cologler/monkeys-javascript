@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name                trakt.tv: lookup duplicated watch
-// @name:zh-CN          trakt.tv：查找重复观看记录
+// @name:zh-CN          trakt.tv: 查找重复观看记录
 // @namespace           https://github.com/Cologler/monkeys-javascript
 // @version             0.1.10
 // @description         Created: 2024/09/18 23:20:59
