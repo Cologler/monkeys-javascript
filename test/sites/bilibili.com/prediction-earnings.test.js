@@ -162,6 +162,34 @@ test('accepts an empty account without displaying a loading error', async functi
     assert.equal(records.length, 0);
 });
 
+test('loads settled history after the observed empty pending category response', async function () {
+    const fixture = loadFetcher([
+        { code: -404, message: '啥都木有', ttl: 1, data: { record: null, page: { pn: 1, ps: 50 } } },
+        page(1, 1, [group(1)]),
+    ]);
+    const signal = new AbortController().signal;
+    const pending = await fixture.fetchHistory(1, signal, function () {});
+    const ended = await fixture.fetchHistory(2, signal, function () {});
+    assert.equal(pending.length, 0);
+    assert.equal(summarize(normalize(pending.concat(ended)).records).net, 270);
+    assert.deepEqual(fixture.calls.map(function (call) { return call.url.searchParams.get('type'); }), ['1', '2']);
+});
+
+test('rejects unrelated errors, inconsistent empty responses, and missing later pages', async function () {
+    for (const pages of [
+        [{ code: -404, message: 'Not found' }],
+        [{ code: -500, data: { record: null, page: { pn: 1, ps: 50 } } }],
+        [{ code: -404, data: { record: [group(1)], page: { pn: 1, ps: 50 } } }],
+        [{ code: -404, data: { record: null, page: { pn: 2, ps: 50 } } }],
+        [{ code: -404, data: { record: null, page: { pn: 1, ps: 0 } } }],
+        [{ code: -404, data: { record: null, page: { pn: 1, ps: 50, total: 1 } } }],
+        [page(1, 2, [group(1)], 1), { code: -404, data: { record: null, page: { pn: 2, ps: 1 } } }],
+    ]) {
+        const fixture = loadFetcher(pages);
+        await assert.rejects(fixture.fetchHistory(2, new AbortController().signal, function () {}));
+    }
+});
+
 test('rejects partial, repeated, changing, malformed, or unauthenticated history', async function () {
     for (const pages of [
         [page(1, 3, [group(1)], 2), page(2, 3, [], 2)],

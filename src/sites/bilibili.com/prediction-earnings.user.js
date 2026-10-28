@@ -2,7 +2,7 @@
 // @name               Bilibili: Prediction Earnings
 // @name:zh-CN         哔哩哔哩：预测收益分析
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.1
+// @version            0.1.2
 // @description        Analyze coin prediction returns by event, inferred phase, and all-time history below My Predictions
 // @description:zh-CN  在我的预测下方按赛事、推断阶段及全部历史分析硬币预测收益
 // @author             Cologler (skyoflw@gmail.com)
@@ -61,14 +61,21 @@
                 throw new Error('读取预测记录失败（HTTP ' + response.status + '）。');
             }
             const result = await response.json();
+            const data = result.data;
+            const info = data && data.page;
             if (result.code === -101) {
                 throw new Error('请登录哔哩哔哩后刷新统计。');
+            }
+            // Bilibili uses -404 and omits page.total for an empty history category.
+            // Accept it only on the first page so missing later pages cannot hide partial history.
+            if (result.code === -404 && page === 1 && data && data.record === null
+                && info && info.pn === page && Number.isInteger(info.ps) && info.ps > 0
+                && (info.total === undefined || info.total === 0)) {
+                return records;
             }
             if (result.code !== 0) {
                 throw new Error('读取预测记录失败：' + (result.message || result.code));
             }
-            const data = result.data;
-            const info = data && data.page;
             if (!info || !Number.isInteger(info.total) || info.total < 0
                 || info.pn !== page || !Number.isInteger(info.ps) || info.ps <= 0
                 || (data.record != null && !Array.isArray(data.record))) {
