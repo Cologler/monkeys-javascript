@@ -25,7 +25,6 @@ My userscripts collection.
 
 | Script | Function |
 | --- | --- |
-| [Better Quality Image](dist/fun/better-quality-image.user.js) | Load full-size images in Tieba posts. |
 | [Match and Copy](dist/fun/match-and-copy.user.js) | Add copy commands for text matching configured patterns. |
 | [GitHub Jumper](dist/jumper/github.com.user.js) | Open the current repository or file on jsDelivr. |
 
