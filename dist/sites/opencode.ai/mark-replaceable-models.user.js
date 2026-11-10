@@ -2,7 +2,7 @@
 // @name               OpenCode: Mark Replaceable Models
 // @name:zh-CN         OpenCode：标记可替代模型
 // @namespace          https://github.com/Cologler/monkeys-javascript
-// @version            0.1.6
+// @version            0.1.7
 // @description        Mark enabled OpenCode Zen models that have a newer, no-more-expensive replacement
 // @description:zh-CN  标记 OpenCode Zen 中可由价格不高于旧版的新版本替代的已启用模型
 // @author             Cologler (skyoflw@gmail.com)
@@ -174,7 +174,8 @@ function installStyles(documentRoot) {
  */
 function getPriceColumns(table) {
     const headers = Array.from(table.querySelectorAll('thead th'), function(cell) {
-        return cell.textContent.trim();
+        // Sort buttons include an arrow outside their label span.
+        return (cell.querySelector('button > span:first-child') ?? cell).textContent.trim();
     });
     const columns = {};
     for (const [field, label] of Object.entries(PRICE_FIELDS)) {
@@ -204,7 +205,8 @@ function readModelCosts(row, columns) {
 
 function readPricedModels(rows, costsByRow) {
     return rows.map(function(row) {
-        const name = row.cells[0]?.firstElementChild?.firstElementChild?.firstElementChild?.textContent.trim();
+        // Read the name alone so tags and replacement badges cannot change its family.
+        const name = row.cells[0]?.querySelector('span[title]')?.getAttribute('title')?.trim();
         const parsed = name && parseModel(name);
         return parsed
             ? { ...parsed, name, row, costs: costsByRow.get(row) }
@@ -283,7 +285,7 @@ function createModelMarker(documentRoot) {
             badge.className = 'replaceable-model-badge';
             badge.textContent = `Replace with ${replacement.name}`;
             badge.title = badgeTitle;
-            current.row.cells[0]?.firstElementChild?.firstElementChild?.append(badge);
+            current.row.cells[0]?.querySelector('span[title]')?.parentElement?.append(badge);
             logReplacement(console, current, replacement);
         }
     };
